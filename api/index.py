@@ -62,28 +62,68 @@ def get_stats():
         
         try:
             sleep_data = client.get_sleep_data(today) or {}
+            print(f"Sleep data keys: {sleep_data.keys() if isinstance(sleep_data, dict) else 'not dict'}")
         except Exception as e:
             print(f"Error fetching sleep data: {e}")
         
         try:
             stress_data = client.get_stress_data(today) or {}
+            print(f"Stress data keys: {stress_data.keys() if isinstance(stress_data, dict) else 'not dict'}")
         except Exception as e:
             print(f"Error fetching stress data: {e}")
         
         try:
             body_battery = client.get_body_battery(today) or []
+            print(f"Body battery type: {type(body_battery)}, length: {len(body_battery) if isinstance(body_battery, list) else 'N/A'}")
+            if isinstance(body_battery, list) and len(body_battery) > 0:
+                print(f"Body battery first item keys: {body_battery[0].keys() if isinstance(body_battery[0], dict) else body_battery[0]}")
         except Exception as e:
             print(f"Error fetching body battery: {e}")
         
-        # Extract sleep details
-        sleep_details = sleep_data.get('dailySleepDTO', {}) if isinstance(sleep_data, dict) else {}
-        sleep_levels = sleep_details.get('sleepLevels', {}) if isinstance(sleep_details, dict) else {}
+        # Extract sleep details - handle different API response structures
+        sleep_details = {}
+        sleep_levels = {}
         
-        # Extract body battery values
-        bb_list = body_battery if isinstance(body_battery, list) else []
-        bb_values = [item.get('bodyBatteryLevel', 0) for item in bb_list if isinstance(item, dict) and item.get('bodyBatteryLevel')]
-        bb_charged = sum(item.get('bodyBatteryChargedValue', 0) or 0 for item in bb_list if isinstance(item, dict))
-        bb_drained = sum(item.get('bodyBatteryDrainedValue', 0) or 0 for item in bb_list if isinstance(item, dict))
+        if isinstance(sleep_data, dict):
+            # Try different possible structures
+            sleep_details = sleep_data.get('dailySleepDTO', {}) or sleep_data
+            if isinstance(sleep_details, dict):
+                sleep_levels = sleep_details.get('sleepLevels', {}) or {}
+                # Also check sleepLevelsMap structure
+                if not sleep_levels and 'sleepLevelsMap' in sleep_details:
+                    sleep_levels_map = sleep_details.get('sleepLevelsMap', {})
+                    sleep_levels = {
+                        'deepSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('deep', [])) // 1000 if sleep_levels_map.get('deep') else 0,
+                        'lightSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('light', [])) // 1000 if sleep_levels_map.get('light') else 0,
+                        'remSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('rem', [])) // 1000 if sleep_levels_map.get('rem') else 0,
+                        'awakeSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('awake', [])) // 1000 if sleep_levels_map.get('awake') else 0,
+                    }
+            print(f"Sleep details keys: {sleep_details.keys() if isinstance(sleep_details, dict) else 'not dict'}")
+        
+        # Extract body battery values - try different structures
+        bb_highest = 0
+        bb_lowest = 100
+        bb_charged = 0
+        bb_drained = 0
+        
+        if isinstance(body_battery, list) and len(body_battery) > 0:
+            for item in body_battery:
+                if isinstance(item, dict):
+                    level = item.get('bodyBatteryLevel') or item.get('value', 0)
+                    if level:
+                        bb_highest = max(bb_highest, level)
+                        bb_lowest = min(bb_lowest, level)
+                    bb_charged += item.get('bodyBatteryChargedValue', 0) or item.get('charged', 0) or 0
+                    bb_drained += item.get('bodyBatteryDrainedValue', 0) or item.get('drained', 0) or 0
+        elif isinstance(body_battery, dict):
+            # Sometimes returned as a dict with different structure
+            bb_highest = body_battery.get('bodyBatteryHighestValue', 0) or body_battery.get('highest', 0) or 0
+            bb_lowest = body_battery.get('bodyBatteryLowestValue', 0) or body_battery.get('lowest', 0) or 0
+            bb_charged = body_battery.get('bodyBatteryChargedValue', 0) or body_battery.get('charged', 0) or 0
+            bb_drained = body_battery.get('bodyBatteryDrainedValue', 0) or body_battery.get('drained', 0) or 0
+        
+        if bb_lowest == 100:
+            bb_lowest = 0
         
         # Calculate intensity minutes safely
         intensity_mins = daily_stats.get('intensityMinutes', 0) or 0
@@ -125,8 +165,8 @@ def get_stats():
                 "highDurationSeconds": (stress_data.get('highStressDuration', 0) if isinstance(stress_data, dict) else 0) or 0
             },
             "bodyBattery": {
-                "highest": max(bb_values) if bb_values else 0,
-                "lowest": min(bb_values) if bb_values else 0,
+                "highest": bb_highest,
+                "lowest": bb_lowest,
                 "charged": bb_charged,
                 "drained": bb_drained
             }
@@ -140,6 +180,41 @@ def get_stats():
         print(f"Error in get_stats: {error_msg}")
         print(f"Traceback: {traceback_str}")
         return jsonify({"error": error_msg, "details": traceback_str}), 500
+
+@app.route('/api/debug')
+def debug():
+    """Debug endpoint to see raw API responses."""
+    try:
+        client = get_garmin_client()
+        today = date.today().isoformat()
+        
+        sleep_data = {}
+        stress_data = {}
+        body_battery = {}
+        
+        try:
+            sleep_data = client.get_sleep_data(today) or {}
+        except Exception as e:
+            sleep_data = {"error": str(e)}
+        
+        try:
+            stress_data = client.get_stress_data(today) or {}
+        except Exception as e:
+            stress_data = {"error": str(e)}
+        
+        try:
+            body_battery = client.get_body_battery(today) or {}
+        except Exception as e:
+            body_battery = {"error": str(e)}
+        
+        return jsonify({
+            "date": today,
+            "sleep_raw": sleep_data,
+            "stress_raw": stress_data,
+            "body_battery_raw": body_battery
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/health')
 def health():
