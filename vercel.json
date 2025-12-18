@@ -1,10 +1,23 @@
 {
-    "rewrites": [
-        { "source": "/api/(.*)", "destination": "/api/index.py" }
-    ],
-    "functions": {
-        "api/index.py": {
-            "runtime": "python3.9"
+    "version": 2,
+    "builds": [
+        {
+            "src": "api/index.py",
+            "use": "@vercel/python"
+        },
+        {
+            "src": "public/**",
+            "use": "@vercel/static"
         }
-    }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/index.py"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/public/$1"
+        }
+    ]
 }
