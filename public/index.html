@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Garmin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            padding: 16px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+            color: #ffffff;
+        }
+
+        html {
+            height: -webkit-fill-available;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: clamp(1.5rem, 6vw, 2.5rem);
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .date-display {
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
+            color: #8892b0;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            min-height: 48px;
+            min-width: 140px;
+            touch-action: manipulation;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover, .btn-primary:active {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid #00d4ff;
+            color: #00d4ff;
+        }
+
+        .btn-secondary:hover, .btn-secondary:active {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 640px) {
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        @media (hover: hover) {
+            .card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+
+        .card-title {
+            font-size: clamp(1rem, 4vw, 1.25rem);
+            font-weight: 600;
+        }
+
+        .summary-icon { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .sleep-icon { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .stress-icon { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .battery-icon { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        @media (min-width: 400px) {
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 14px;
+            }
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        @media (min-width: 400px) {
+            .stat-label {
+                font-size: 0.75rem;
+            }
+        }
+
+        .stat-value {
+            font-size: clamp(1.1rem, 4vw, 1.5rem);
+            font-weight: 700;
+            color: #ffffff;
+            word-break: break-word;
+        }
+
+        .stat-value.highlight {
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8892b0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(255, 82, 82, 0.1);
+            border: 1px solid rgba(255, 82, 82, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: #ff5252;
+        }
+
+        .error h3 {
+            margin-bottom: 10px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: max(20px, env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #00d4ff;
+            color: #1a1a2e;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-weight: 600;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Pull to refresh indicator */
+        .pull-indicator {
+            text-align: center;
+            padding: 10px;
+            color: #8892b0;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        /* Landscape phone optimization */
+        @media (max-height: 500px) and (orientation: landscape) {
+            body {
+                padding: 10px;
+            }
+            
+            header {
+                margin-bottom: 10px;
+            }
+            
+            .actions {
+                margin-bottom: 10px;
+            }
+            
+            .card {
+                padding: 14px;
+            }
+            
+            .stat-grid {
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏃 Garmin Dashboard</h1>
+            <p class="date-display" id="dateDisplay">Loading...</p>
+        </header>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="fetchStats()">🔄 Refresh</button>
+            <button class="btn btn-secondary" onclick="copyForGemini()">📋 Copy for Gemini</button>
+        </div>
+
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Fetching your Garmin data...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Copied to clipboard!</div>
+
+    <script>
+        let statsData = null;
+
+        function formatSeconds(seconds) {
+            if (!seconds) return '0h 0m';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
+
+        function formatNumber(num) {
+            return num ? num.toLocaleString() : '0';
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function fetchStats() {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Fetching your Garmin data...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                statsData = data;
+                document.getElementById('dateDisplay').textContent = `Data for ${data.date}`;
+                renderDashboard(data);
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error Loading Data</h3>
+                        <p>${error.message}</p>
+                        <button class="btn btn-primary" onclick="fetchStats()" style="margin-top: 15px;">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderDashboard(data) {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="dashboard">
+                    <!-- Summary Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon summary-icon">📊</div>
+                            <h2 class="card-title">Daily Summary</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Steps</div>
+                                <div class="stat-value highlight">${formatNumber(data.summary.totalSteps)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Resting HR</div>
+                                <div class="stat-value">${data.summary.restingHeartRate} bpm</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">HR Range</div>
+                                <div class="stat-value">${data.summary.minHeartRate}-${data.summary.maxHeartRate}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Active Cal</div>
+                                <div class="stat-value">${formatNumber(data.summary.activeKilocalories)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Total Cal</div>
+                                <div class="stat-value">${formatNumber(data.summary.totalKilocalories)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Intensity Min</div>
+                                <div class="stat-value">${data.summary.intensityMinutes}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sleep Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon sleep-icon">😴</div>
+                            <h2 class="card-title">Sleep</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Score</div>
+                                <div class="stat-value highlight">${data.sleep.overallScore}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Total Sleep</div>
+                                <div class="stat-value">${formatSeconds(data.sleep.totalSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Deep</div>
+                                <div class="stat-value">${formatSeconds(data.sleep.deepSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Light</div>
+                                <div class="stat-value">${formatSeconds(data.sleep.lightSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">REM</div>
+                                <div class="stat-value">${formatSeconds(data.sleep.remSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Awake</div>
+                                <div class="stat-value">${formatSeconds(data.sleep.awakeSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Avg SpO2</div>
+                                <div class="stat-value">${data.sleep.avgSpO2 || 'N/A'}%</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Avg Resp</div>
+                                <div class="stat-value">${data.sleep.avgRespiration || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stress Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon stress-icon">🧘</div>
+                            <h2 class="card-title">Stress</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Average</div>
+                                <div class="stat-value highlight">${data.stress.averageLevel}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Max</div>
+                                <div class="stat-value">${data.stress.maxLevel}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Rest</div>
+                                <div class="stat-value">${formatSeconds(data.stress.restDurationSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Low</div>
+                                <div class="stat-value">${formatSeconds(data.stress.lowDurationSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Medium</div>
+                                <div class="stat-value">${formatSeconds(data.stress.mediumDurationSeconds)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">High</div>
+                                <div class="stat-value">${formatSeconds(data.stress.highDurationSeconds)}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Body Battery Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon battery-icon">🔋</div>
+                            <h2 class="card-title">Body Battery</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Highest</div>
+                                <div class="stat-value highlight">${data.bodyBattery.highest}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Lowest</div>
+                                <div class="stat-value">${data.bodyBattery.lowest}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Charged</div>
+                                <div class="stat-value">+${data.bodyBattery.charged}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Drained</div>
+                                <div class="stat-value">-${data.bodyBattery.drained}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyForGemini() {
+            if (!statsData) {
+                alert('No data to copy. Please refresh first.');
+                return;
+            }
+
+            const text = JSON.stringify(statsData, null, 2);
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            });
+        }
+
+        // Initial fetch
+        fetchStats();
+    </script>
+</body>
+</html>
