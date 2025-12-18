@@ -5,27 +5,14 @@
             "use": "@vercel/python"
         }
     ],
-    "redirects": [
+    "routes": [
         {
-            "source": "/:path*",
-            "has": [
-                {
-                    "type": "host",
-                    "value": "garmin-dashboard.vercel.app"
-                }
-            ],
-            "destination": "https://garmin.8landridgeroad.com/:path*",
-            "permanent": true
-        }
-    ],
-    "rewrites": [
-        {
-            "source": "/api/:path*",
-            "destination": "/api/index.py"
+            "src": "/api/(.*)",
+            "dest": "api/index.py"
         },
         {
-            "source": "/:path*",
-            "destination": "/public/:path*"
+            "src": "/(.*)",
+            "dest": "/public/$1"
         }
     ]
 }
