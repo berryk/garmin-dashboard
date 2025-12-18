@@ -81,6 +81,7 @@ def get_stats():
                 overall_score = overall_obj.get('value', 0) or 0
         
         # Body battery - it's a list with one dict containing the data
+        bb_current = 0
         bb_highest = 0
         bb_lowest = 100
         bb_charged = 0
@@ -93,13 +94,15 @@ def get_stats():
             bb_charged = bb_data.get('charged', 0) or 0
             bb_drained = bb_data.get('drained', 0) or 0
             
-            # Get highest/lowest from bodyBatteryValuesArray [[timestamp, level], ...]
+            # Get values from bodyBatteryValuesArray [[timestamp, level], ...]
             values_array = bb_data.get('bodyBatteryValuesArray', []) or []
             if values_array:
                 levels = [item[1] for item in values_array if isinstance(item, list) and len(item) > 1 and item[1] is not None]
                 if levels:
                     bb_highest = max(levels)
                     bb_lowest = min(levels)
+                    # Current is the most recent (last) value
+                    bb_current = levels[-1] if levels else 0
         
         if bb_lowest == 100:
             bb_lowest = 0
@@ -167,6 +170,7 @@ def get_stats():
                 "highDurationSeconds": high_duration
             },
             "bodyBattery": {
+                "current": bb_current,
                 "highest": bb_highest,
                 "lowest": bb_lowest,
                 "charged": bb_charged,
