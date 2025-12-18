@@ -147,6 +147,22 @@ def health():
     email = os.environ.get('GARMIN_EMAIL', '')
     password = os.environ.get('GARMIN_PASSWORD', '')
     tokens = os.environ.get('GARMIN_TOKENS', '')
+    
+    # Try to load tokens and report status
+    token_load_status = "not_attempted"
+    token_error = None
+    profile_name = None
+    
+    if tokens:
+        try:
+            client = Garmin()
+            client.garth.loads(tokens)
+            profile_name = client.garth.profile.get("displayName", "unknown")
+            token_load_status = "success"
+        except Exception as e:
+            token_load_status = "failed"
+            token_error = str(e)
+    
     return jsonify({
         "status": "ok",
         "env_check": {
@@ -155,7 +171,10 @@ def health():
             "password_set": bool(password),
             "password_length": len(password),
             "tokens_set": bool(tokens),
-            "tokens_length": len(tokens)
+            "tokens_length": len(tokens),
+            "token_load_status": token_load_status,
+            "token_error": token_error,
+            "profile_name": profile_name
         }
     })
 
