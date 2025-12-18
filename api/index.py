@@ -1,21 +1,45 @@
 from flask import Flask, jsonify
 import os
+import json
 import traceback
 from garminconnect import Garmin
 from datetime import datetime, date
 
 app = Flask(__name__)
 
+# Token storage path for Garmin session
+GARMIN_SESSION = None
+
 def get_garmin_client():
-    """Initialize and return authenticated Garmin client."""
+    """Initialize and return authenticated Garmin client using stored session or credentials."""
+    global GARMIN_SESSION
+    
     email = os.environ.get('GARMIN_EMAIL')
     password = os.environ.get('GARMIN_PASSWORD')
+    tokens_json = os.environ.get('GARMIN_TOKENS')
+    
+    if tokens_json:
+        # Use stored tokens (preferred method for serverless)
+        try:
+            tokens = json.loads(tokens_json)
+            client = Garmin()
+            client.garth.loads(tokens)
+            # Test if session is still valid
+            client.display_name = client.garth.profile["displayName"]
+            return client
+        except Exception as e:
+            print(f"Stored tokens failed, trying credential login: {e}")
     
     if not email or not password:
         raise ValueError(f"Missing credentials: email={'set' if email else 'missing'}, password={'set' if password else 'missing'}")
     
+    # Try login with credentials
     client = Garmin(email, password)
     client.login()
+    
+    # Save session for future use
+    GARMIN_SESSION = client.garth.dumps()
+    
     return client
 
 @app.route('/api/stats')
@@ -122,13 +146,16 @@ def health():
     """Health check endpoint."""
     email = os.environ.get('GARMIN_EMAIL', '')
     password = os.environ.get('GARMIN_PASSWORD', '')
+    tokens = os.environ.get('GARMIN_TOKENS', '')
     return jsonify({
         "status": "ok",
         "env_check": {
             "email_set": bool(email),
             "email_length": len(email),
             "password_set": bool(password),
-            "password_length": len(password)
+            "password_length": len(password),
+            "tokens_set": bool(tokens),
+            "tokens_length": len(tokens)
         }
     })
 
