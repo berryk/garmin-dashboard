@@ -7,24 +7,16 @@ from datetime import datetime, date
 
 app = Flask(__name__)
 
-# Token storage path for Garmin session
-GARMIN_SESSION = None
-
 def get_garmin_client():
     """Initialize and return authenticated Garmin client using stored session or credentials."""
-    global GARMIN_SESSION
-    
     email = os.environ.get('GARMIN_EMAIL')
     password = os.environ.get('GARMIN_PASSWORD')
     tokens_json = os.environ.get('GARMIN_TOKENS')
     
     if tokens_json:
-        # Use stored tokens (preferred method for serverless)
         try:
             client = Garmin()
-            # tokens_json is already base64 encoded from garth.dumps()
             client.garth.loads(tokens_json)
-            # Test if session is still valid
             client.display_name = client.garth.profile["displayName"]
             return client
         except Exception as e:
@@ -33,13 +25,8 @@ def get_garmin_client():
     if not email or not password:
         raise ValueError(f"Missing credentials: email={'set' if email else 'missing'}, password={'set' if password else 'missing'}")
     
-    # Try login with credentials
     client = Garmin(email, password)
     client.login()
-    
-    # Save session for future use
-    GARMIN_SESSION = client.garth.dumps()
-    
     return client
 
 @app.route('/api/stats')
@@ -49,7 +36,6 @@ def get_stats():
         client = get_garmin_client()
         today = date.today().isoformat()
         
-        # Fetch all data with individual error handling
         daily_stats = {}
         sleep_data = {}
         stress_data = {}
@@ -62,70 +48,86 @@ def get_stats():
         
         try:
             sleep_data = client.get_sleep_data(today) or {}
-            print(f"Sleep data keys: {sleep_data.keys() if isinstance(sleep_data, dict) else 'not dict'}")
         except Exception as e:
             print(f"Error fetching sleep data: {e}")
         
         try:
             stress_data = client.get_stress_data(today) or {}
-            print(f"Stress data keys: {stress_data.keys() if isinstance(stress_data, dict) else 'not dict'}")
         except Exception as e:
             print(f"Error fetching stress data: {e}")
         
         try:
             body_battery = client.get_body_battery(today) or []
-            print(f"Body battery type: {type(body_battery)}, length: {len(body_battery) if isinstance(body_battery, list) else 'N/A'}")
-            if isinstance(body_battery, list) and len(body_battery) > 0:
-                print(f"Body battery first item keys: {body_battery[0].keys() if isinstance(body_battery[0], dict) else body_battery[0]}")
         except Exception as e:
             print(f"Error fetching body battery: {e}")
         
-        # Extract sleep details - handle different API response structures
-        sleep_details = {}
-        sleep_levels = {}
-        
+        # Extract sleep details from dailySleepDTO
+        sleep_dto = {}
         if isinstance(sleep_data, dict):
-            # Try different possible structures
-            sleep_details = sleep_data.get('dailySleepDTO', {}) or sleep_data
-            if isinstance(sleep_details, dict):
-                sleep_levels = sleep_details.get('sleepLevels', {}) or {}
-                # Also check sleepLevelsMap structure
-                if not sleep_levels and 'sleepLevelsMap' in sleep_details:
-                    sleep_levels_map = sleep_details.get('sleepLevelsMap', {})
-                    sleep_levels = {
-                        'deepSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('deep', [])) // 1000 if sleep_levels_map.get('deep') else 0,
-                        'lightSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('light', [])) // 1000 if sleep_levels_map.get('light') else 0,
-                        'remSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('rem', [])) // 1000 if sleep_levels_map.get('rem') else 0,
-                        'awakeSleepSeconds': sum(item.get('endGMT', 0) - item.get('startGMT', 0) for item in sleep_levels_map.get('awake', [])) // 1000 if sleep_levels_map.get('awake') else 0,
-                    }
-            print(f"Sleep details keys: {sleep_details.keys() if isinstance(sleep_details, dict) else 'not dict'}")
+            sleep_dto = sleep_data.get('dailySleepDTO', {}) or {}
         
-        # Extract body battery values - try different structures
+        # Sleep stages are directly in dailySleepDTO, not nested
+        deep_seconds = sleep_dto.get('deepSleepSeconds', 0) or 0
+        light_seconds = sleep_dto.get('lightSleepSeconds', 0) or 0
+        rem_seconds = sleep_dto.get('remSleepSeconds', 0) or 0
+        awake_seconds = sleep_dto.get('awakeSleepSeconds', 0) or 0
+        
+        # Get sleep score from nested structure
+        sleep_scores = sleep_dto.get('sleepScores', {}) or {}
+        overall_score = 0
+        if isinstance(sleep_scores, dict):
+            overall_obj = sleep_scores.get('overall', {}) or {}
+            if isinstance(overall_obj, dict):
+                overall_score = overall_obj.get('value', 0) or 0
+        
+        # Body battery - it's a list with one dict containing the data
         bb_highest = 0
         bb_lowest = 100
         bb_charged = 0
         bb_drained = 0
         
         if isinstance(body_battery, list) and len(body_battery) > 0:
-            for item in body_battery:
-                if isinstance(item, dict):
-                    level = item.get('bodyBatteryLevel') or item.get('value', 0)
-                    if level:
-                        bb_highest = max(bb_highest, level)
-                        bb_lowest = min(bb_lowest, level)
-                    bb_charged += item.get('bodyBatteryChargedValue', 0) or item.get('charged', 0) or 0
-                    bb_drained += item.get('bodyBatteryDrainedValue', 0) or item.get('drained', 0) or 0
-        elif isinstance(body_battery, dict):
-            # Sometimes returned as a dict with different structure
-            bb_highest = body_battery.get('bodyBatteryHighestValue', 0) or body_battery.get('highest', 0) or 0
-            bb_lowest = body_battery.get('bodyBatteryLowestValue', 0) or body_battery.get('lowest', 0) or 0
-            bb_charged = body_battery.get('bodyBatteryChargedValue', 0) or body_battery.get('charged', 0) or 0
-            bb_drained = body_battery.get('bodyBatteryDrainedValue', 0) or body_battery.get('drained', 0) or 0
+            bb_data = body_battery[0] if isinstance(body_battery[0], dict) else {}
+            
+            # Get charged/drained directly
+            bb_charged = bb_data.get('charged', 0) or 0
+            bb_drained = bb_data.get('drained', 0) or 0
+            
+            # Get highest/lowest from bodyBatteryValuesArray [[timestamp, level], ...]
+            values_array = bb_data.get('bodyBatteryValuesArray', []) or []
+            if values_array:
+                levels = [item[1] for item in values_array if isinstance(item, list) and len(item) > 1 and item[1] is not None]
+                if levels:
+                    bb_highest = max(levels)
+                    bb_lowest = min(levels)
         
         if bb_lowest == 100:
             bb_lowest = 0
         
-        # Calculate intensity minutes safely
+        # Stress data - calculate durations from stressValuesArray
+        # Stress levels: -2/-1 = unmeasured, 0-25 = rest, 26-50 = low, 51-75 = medium, 76-100 = high
+        rest_duration = 0
+        low_duration = 0
+        medium_duration = 0
+        high_duration = 0
+        
+        if isinstance(stress_data, dict):
+            stress_values = stress_data.get('stressValuesArray', []) or []
+            for item in stress_values:
+                if isinstance(item, list) and len(item) > 1:
+                    level = item[1]
+                    if level is not None and level >= 0:
+                        # Each reading is 3 minutes (180 seconds)
+                        if level <= 25:
+                            rest_duration += 180
+                        elif level <= 50:
+                            low_duration += 180
+                        elif level <= 75:
+                            medium_duration += 180
+                        else:
+                            high_duration += 180
+        
+        # Calculate intensity minutes
         intensity_mins = daily_stats.get('intensityMinutes', 0) or 0
         if not intensity_mins:
             mod_mins = daily_stats.get('moderateIntensityMinutes', 0) or 0
@@ -144,25 +146,25 @@ def get_stats():
                 "intensityMinutes": intensity_mins
             },
             "sleep": {
-                "overallScore": (sleep_details.get('sleepScores', {}) or {}).get('overall', {}).get('value', 0) or 0,
-                "totalSeconds": sleep_details.get('sleepTimeSeconds', 0) or 0,
-                "deepSeconds": sleep_levels.get('deepSleepSeconds', 0) or 0,
-                "lightSeconds": sleep_levels.get('lightSleepSeconds', 0) or 0,
-                "remSeconds": sleep_levels.get('remSleepSeconds', 0) or 0,
-                "awakeSeconds": sleep_levels.get('awakeSleepSeconds', 0) or 0,
-                "avgStress": sleep_details.get('avgSleepStress', 0) or 0,
-                "avgSpO2": sleep_details.get('averageSpO2Value', 0) or 0,
-                "avgRespiration": sleep_details.get('averageRespirationValue', 0) or 0,
-                "startTime": sleep_details.get('sleepStartTimestampGMT', 0) or 0,
-                "endTime": sleep_details.get('sleepEndTimestampGMT', 0) or 0
+                "overallScore": overall_score,
+                "totalSeconds": sleep_dto.get('sleepTimeSeconds', 0) or 0,
+                "deepSeconds": deep_seconds,
+                "lightSeconds": light_seconds,
+                "remSeconds": rem_seconds,
+                "awakeSeconds": awake_seconds,
+                "avgStress": sleep_dto.get('avgSleepStress', 0) or 0,
+                "avgSpO2": sleep_dto.get('averageSpO2Value', 0) or 0,
+                "avgRespiration": sleep_dto.get('averageRespirationValue', 0) or 0,
+                "startTime": sleep_dto.get('sleepStartTimestampGMT', 0) or 0,
+                "endTime": sleep_dto.get('sleepEndTimestampGMT', 0) or 0
             },
             "stress": {
                 "averageLevel": (stress_data.get('avgStressLevel', 0) if isinstance(stress_data, dict) else 0) or 0,
                 "maxLevel": (stress_data.get('maxStressLevel', 0) if isinstance(stress_data, dict) else 0) or 0,
-                "restDurationSeconds": (stress_data.get('restStressDuration', 0) if isinstance(stress_data, dict) else 0) or 0,
-                "lowDurationSeconds": (stress_data.get('lowStressDuration', 0) if isinstance(stress_data, dict) else 0) or 0,
-                "mediumDurationSeconds": (stress_data.get('mediumStressDuration', 0) if isinstance(stress_data, dict) else 0) or 0,
-                "highDurationSeconds": (stress_data.get('highStressDuration', 0) if isinstance(stress_data, dict) else 0) or 0
+                "restDurationSeconds": rest_duration,
+                "lowDurationSeconds": low_duration,
+                "mediumDurationSeconds": medium_duration,
+                "highDurationSeconds": high_duration
             },
             "bodyBattery": {
                 "highest": bb_highest,
@@ -223,7 +225,6 @@ def health():
     password = os.environ.get('GARMIN_PASSWORD', '')
     tokens = os.environ.get('GARMIN_TOKENS', '')
     
-    # Try to load tokens and report status
     token_load_status = "not_attempted"
     token_error = None
     profile_name = None
@@ -253,7 +254,6 @@ def health():
         }
     })
 
-# For local development
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
