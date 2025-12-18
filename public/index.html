@@ -438,12 +438,24 @@
                                 <div class="stat-value">${formatSeconds(data.sleep.awakeSeconds)}</div>
                             </div>
                             <div class="stat-item">
+                                <div class="stat-label">Sleep Stress</div>
+                                <div class="stat-value">${data.sleep.avgStress || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
                                 <div class="stat-label">Avg SpO2</div>
                                 <div class="stat-value">${data.sleep.avgSpO2 || 'N/A'}%</div>
                             </div>
                             <div class="stat-item">
                                 <div class="stat-label">Avg Resp</div>
                                 <div class="stat-value">${data.sleep.avgRespiration || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Bed Time</div>
+                                <div class="stat-value">${formatTime(data.sleep.startTime)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Wake Time</div>
+                                <div class="stat-value">${formatTime(data.sleep.endTime)}</div>
                             </div>
                         </div>
                     </div>
