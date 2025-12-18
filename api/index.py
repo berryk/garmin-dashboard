@@ -21,9 +21,9 @@ def get_garmin_client():
     if tokens_json:
         # Use stored tokens (preferred method for serverless)
         try:
-            tokens = json.loads(tokens_json)
             client = Garmin()
-            client.garth.loads(tokens)
+            # tokens_json is already base64 encoded from garth.dumps()
+            client.garth.loads(tokens_json)
             # Test if session is still valid
             client.display_name = client.garth.profile["displayName"]
             return client
