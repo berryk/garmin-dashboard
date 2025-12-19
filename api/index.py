@@ -24,7 +24,6 @@ CSV_HEADERS = [
 
 BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
 CSV_FILENAME = 'garmin-data.csv'
-_blob_url_cache = {}
 
 def list_blobs():
     """List blobs to find CSV file URL."""
@@ -45,14 +44,10 @@ def list_blobs():
         return []
 
 def get_blob_url():
-    """Get the URL for our CSV blob by listing blobs."""
-    if 'csv_url' in _blob_url_cache:
-        return _blob_url_cache['csv_url']
-    
+    """Get the URL for our CSV blob by listing blobs (no caching to avoid stale data in serverless)."""
     blobs = list_blobs()
     for blob in blobs:
         if blob.get('pathname') == CSV_FILENAME:
-            _blob_url_cache['csv_url'] = blob.get('url')
             return blob.get('url')
     return None
 
@@ -103,10 +98,6 @@ def write_csv_to_blob(rows):
         response = requests.put(upload_url, data=csv_content.encode('utf-8'), headers=headers, timeout=30)
         
         if response.status_code in [200, 201]:
-            # Cache the URL from response
-            resp_data = response.json()
-            if 'url' in resp_data:
-                _blob_url_cache['csv_url'] = resp_data['url']
             print(f"CSV uploaded successfully")
             return True
         else:
