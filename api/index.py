@@ -62,7 +62,9 @@ def read_csv_from_blob():
             print("CSV blob not found")
             return []
         
-        response = requests.get(blob_url, timeout=10)
+        # Add cache-busting query param to avoid CDN cached content
+        cache_bust_url = f"{blob_url}?t={datetime.now().timestamp()}"
+        response = requests.get(cache_bust_url, timeout=10, headers={'Cache-Control': 'no-cache'})
         if response.status_code == 200:
             reader = csv.DictReader(io.StringIO(response.text))
             return list(reader)
