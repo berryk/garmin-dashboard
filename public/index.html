@@ -73,7 +73,7 @@
             transition: all 0.3s ease;
             font-weight: 600;
             min-height: 48px;
-            min-width: 140px;
+            min-width: 120px;
             touch-action: manipulation;
         }
 
@@ -95,6 +95,13 @@
 
         .btn-secondary:hover, .btn-secondary:active {
             background: rgba(0, 212, 255, 0.1);
+        }
+
+        .btn-small {
+            padding: 10px 16px;
+            min-height: 40px;
+            min-width: 80px;
+            font-size: 0.9rem;
         }
 
         .dashboard {
@@ -161,6 +168,7 @@
         .stress-icon { background: linear-gradient(135deg, #f093fb, #f5576c); }
         .battery-icon { background: linear-gradient(135deg, #43e97b, #38f9d7); }
         .composition-icon { background: linear-gradient(135deg, #a8edea, #fed6e3); }
+        .waist-icon { background: linear-gradient(135deg, #ffecd2, #fcb69f); }
 
         .stat-grid {
             display: grid;
@@ -207,6 +215,39 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .stat-date {
+            font-size: 0.65rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            min-width: 80px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .input-field::placeholder {
+            color: #6b7280;
         }
 
         .loading {
@@ -263,15 +304,6 @@
             opacity: 1;
         }
 
-        /* Pull to refresh indicator */
-        .pull-indicator {
-            text-align: center;
-            padding: 10px;
-            color: #8892b0;
-            font-size: 0.9rem;
-            display: none;
-        }
-
         /* Landscape phone optimization */
         @media (max-height: 500px) and (orientation: landscape) {
             body {
@@ -305,7 +337,8 @@
 
         <div class="actions">
             <button class="btn btn-primary" onclick="fetchStats()">🔄 Refresh</button>
-            <button class="btn btn-secondary" onclick="copyForGemini()">📋 Copy for Gemini</button>
+            <button class="btn btn-secondary" onclick="copyForGemini()">📋 Copy</button>
+            <button class="btn btn-secondary" onclick="downloadCSV()">📥 CSV</button>
         </div>
 
         <div id="content">
@@ -336,6 +369,21 @@
             if (!timestamp) return 'N/A';
             const date = new Date(timestamp);
             return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatHistoricalDate(dateStr, todayStr) {
+            if (!dateStr || dateStr === todayStr) return '';
+            const d = new Date(dateStr);
+            const month = d.toLocaleString('en-US', { month: 'short' });
+            const day = d.getDate();
+            return `(from ${month} ${day})`;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
         async function fetchStats() {
@@ -369,7 +417,49 @@
             }
         }
 
+        async function saveWaist() {
+            const input = document.getElementById('waistInput');
+            const inches = parseFloat(input.value);
+            
+            if (!inches || inches <= 0) {
+                showToast('Please enter a valid measurement');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/waist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inches })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Waist saved!');
+                    input.value = '';
+                    // Refresh to show updated data
+                    fetchStats();
+                } else {
+                    showToast('Error: ' + (result.error || 'Failed to save'));
+                }
+            } catch (error) {
+                showToast('Error saving waist');
+            }
+        }
+
+        function downloadCSV() {
+            window.location.href = '/api/download';
+        }
+
         function renderDashboard(data) {
+            const today = data.date;
+            const bodyCompDate = data.bodyComposition?.date || today;
+            const waistDate = data.waist?.date || '';
+            
+            const bodyCompHistorical = formatHistoricalDate(bodyCompDate, today);
+            const waistHistorical = formatHistoricalDate(waistDate, today);
+            
             const content = document.getElementById('content');
             content.innerHTML = `
                 <div class="dashboard">
@@ -529,7 +619,7 @@
                     <div class="card">
                         <div class="card-header">
                             <div class="card-icon composition-icon">⚖️</div>
-                            <h2 class="card-title">Body Composition</h2>
+                            <h2 class="card-title">Body Composition ${bodyCompHistorical}</h2>
                         </div>
                         <div class="stat-grid">
                             <div class="stat-item">
@@ -554,6 +644,24 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Waist Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon waist-icon">📏</div>
+                            <h2 class="card-title">Waist ${waistHistorical}</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Measurement</div>
+                                <div class="stat-value highlight">${data.waist?.inches || 0}" </div>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <input type="number" id="waistInput" class="input-field" placeholder="Enter inches" step="0.1" min="0">
+                            <button class="btn btn-primary btn-small" onclick="saveWaist()">Save</button>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -566,22 +674,16 @@
 
             const text = JSON.stringify(statsData, null, 2);
             navigator.clipboard.writeText(text).then(() => {
-                const toast = document.getElementById('toast');
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 2000);
+                showToast('Copied to clipboard!');
             }).catch(err => {
                 console.error('Failed to copy:', err);
-                // Fallback for older browsers
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
                 document.body.appendChild(textarea);
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
-                
-                const toast = document.getElementById('toast');
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 2000);
+                showToast('Copied to clipboard!');
             });
         }
 
