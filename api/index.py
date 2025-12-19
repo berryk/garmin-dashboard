@@ -77,6 +77,21 @@ def read_csv_from_blob():
         print(f"Error reading CSV from blob: {e}")
         return []
 
+def delete_blob(url):
+    """Delete a blob by URL."""
+    if not BLOB_TOKEN:
+        return False
+    
+    try:
+        headers = {
+            'Authorization': f'Bearer {BLOB_TOKEN}'
+        }
+        response = requests.delete(f'https://blob.vercel-storage.com?url={url}', headers=headers, timeout=10)
+        return response.status_code in [200, 204]
+    except Exception as e:
+        print(f"Error deleting blob: {e}")
+        return False
+
 def write_csv_to_blob(rows):
     """Write CSV data to Vercel Blob storage."""
     if not BLOB_TOKEN:
@@ -84,6 +99,10 @@ def write_csv_to_blob(rows):
         return False
     
     try:
+        # Get existing blobs to delete after upload
+        old_blobs = [b for b in list_blobs() if b.get('pathname') == CSV_FILENAME]
+        old_urls = [b.get('url') for b in old_blobs if b.get('url')]
+        
         # Create CSV content
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=CSV_HEADERS)
@@ -105,6 +124,10 @@ def write_csv_to_blob(rows):
         
         if response.status_code in [200, 201]:
             print(f"CSV uploaded successfully")
+            # Delete old blobs to avoid confusion
+            for old_url in old_urls:
+                delete_blob(old_url)
+                print(f"Deleted old blob: {old_url}")
             return True
         else:
             print(f"Failed to upload CSV: {response.status_code} - {response.text}")
