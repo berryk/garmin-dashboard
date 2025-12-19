@@ -410,18 +410,20 @@ def get_stats():
         found = False
         for i, row in enumerate(csv_rows):
             if row.get('date') == today:
-                # Preserve waist if already set for today
-                if csv_rows[i].get('waistInches') and not csv_row['waistInches']:
-                    csv_row['waistInches'] = csv_rows[i]['waistInches']
-                    csv_row['waistDate'] = csv_rows[i]['waistDate']
-                # Preserve body comp if already set for today
-                if csv_rows[i].get('weightKg') and not csv_row['weightKg']:
-                    csv_row['weightKg'] = csv_rows[i]['weightKg']
-                    csv_row['weightLbs'] = csv_rows[i]['weightLbs']
-                    csv_row['bodyFatPercent'] = csv_rows[i]['bodyFatPercent']
-                    csv_row['bodyWaterPercent'] = csv_rows[i]['bodyWaterPercent']
-                    csv_row['muscleMassKg'] = csv_rows[i]['muscleMassKg']
-                    csv_row['bodyCompDate'] = csv_rows[i]['bodyCompDate']
+                # ALWAYS preserve waist from existing row if it has data
+                existing_waist = csv_rows[i].get('waistInches')
+                if existing_waist and str(existing_waist).strip():
+                    csv_row['waistInches'] = existing_waist
+                    csv_row['waistDate'] = csv_rows[i].get('waistDate', today)
+                # ALWAYS preserve body comp from existing row if it has data
+                existing_weight = csv_rows[i].get('weightKg')
+                if existing_weight and str(existing_weight).strip():
+                    csv_row['weightKg'] = existing_weight
+                    csv_row['weightLbs'] = csv_rows[i].get('weightLbs', '')
+                    csv_row['bodyFatPercent'] = csv_rows[i].get('bodyFatPercent', '')
+                    csv_row['bodyWaterPercent'] = csv_rows[i].get('bodyWaterPercent', '')
+                    csv_row['muscleMassKg'] = csv_rows[i].get('muscleMassKg', '')
+                    csv_row['bodyCompDate'] = csv_rows[i].get('bodyCompDate', today)
                 csv_rows[i] = csv_row
                 found = True
                 break
