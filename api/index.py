@@ -367,6 +367,7 @@ def get_stats():
         }
         
         # Save to CSV (upsert by date)
+        # Note: We leave waist/body comp empty here - they will be preserved from existing row in upsert
         csv_row = {
             'date': today,
             'totalSteps': response['summary']['totalSteps'],
@@ -404,8 +405,8 @@ def get_stats():
             'bodyWaterPercent': body_water if has_today_body_comp else '',
             'muscleMassKg': muscle_mass_kg if has_today_body_comp else '',
             'bodyCompDate': body_comp_date if has_today_body_comp else '',
-            'waistInches': waist_inches if waist_date == today else '',
-            'waistDate': waist_date if waist_date == today else ''
+            'waistInches': '',  # Preserve from existing row only
+            'waistDate': ''     # Preserve from existing row only
         }
         
         # Upsert row
