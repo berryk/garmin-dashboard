@@ -94,7 +94,8 @@ def write_csv_to_blob(rows):
         headers = {
             'Authorization': f'Bearer {BLOB_TOKEN}',
             'Content-Type': 'text/csv',
-            'x-api-version': '7'
+            'x-api-version': '7',
+            'x-add-random-suffix': 'false'  # Don't add random suffix, keep same filename
         }
         
         response = requests.put(upload_url, data=csv_content.encode('utf-8'), headers=headers, timeout=30)
