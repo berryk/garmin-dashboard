@@ -61,6 +61,12 @@ def get_stats():
         except Exception as e:
             print(f"Error fetching body battery: {e}")
         
+        body_composition = {}
+        try:
+            body_composition = client.get_body_composition(today) or {}
+        except Exception as e:
+            print(f"Error fetching body composition: {e}")
+        
         # Extract sleep details from dailySleepDTO
         sleep_dto = {}
         if isinstance(sleep_data, dict):
@@ -137,6 +143,34 @@ def get_stats():
             vig_mins = daily_stats.get('vigorousIntensityMinutes', 0) or 0
             intensity_mins = mod_mins + vig_mins
         
+        # Body composition - extract from dateWeightList or totalAverage
+        weight_grams = 0
+        body_fat = 0
+        body_water = 0
+        muscle_mass_grams = 0
+        
+        if isinstance(body_composition, dict):
+            # Try dateWeightList first (most recent measurement)
+            weight_list = body_composition.get('dateWeightList', []) or []
+            if weight_list and len(weight_list) > 0:
+                latest = weight_list[-1] if isinstance(weight_list[-1], dict) else {}
+                weight_grams = latest.get('weight', 0) or 0
+                body_fat = latest.get('bodyFat', 0) or 0
+                body_water = latest.get('bodyWater', 0) or 0
+                muscle_mass_grams = latest.get('muscleMass', 0) or 0
+            else:
+                # Fall back to totalAverage
+                avg = body_composition.get('totalAverage', {}) or {}
+                weight_grams = avg.get('weight', 0) or 0
+                body_fat = avg.get('bodyFat', 0) or 0
+                body_water = avg.get('bodyWater', 0) or 0
+                muscle_mass_grams = avg.get('muscleMass', 0) or 0
+        
+        # Convert weight from grams to kg and lbs
+        weight_kg = round(weight_grams / 1000, 1) if weight_grams else 0
+        weight_lbs = round(weight_grams / 453.592, 1) if weight_grams else 0
+        muscle_mass_kg = round(muscle_mass_grams / 1000, 1) if muscle_mass_grams else 0
+        
         response = {
             "date": today,
             "summary": {
@@ -175,6 +209,13 @@ def get_stats():
                 "lowest": bb_lowest,
                 "charged": bb_charged,
                 "drained": bb_drained
+            },
+            "bodyComposition": {
+                "weightKg": weight_kg,
+                "weightLbs": weight_lbs,
+                "bodyFatPercent": body_fat,
+                "bodyWaterPercent": body_water,
+                "muscleMassKg": muscle_mass_kg
             }
         }
         
