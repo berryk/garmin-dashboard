@@ -6,13 +6,13 @@ import requests
 import csv
 import io
 from garminconnect import Garmin
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 app = Flask(__name__)
 
 # CSV Header columns
 CSV_HEADERS = [
-    'date', 'totalSteps', 'restingHeartRate', 'minHeartRate', 'maxHeartRate',
+    'date', 'totalSteps', 'stepsYesterday', 'restingHeartRate', 'minHeartRate', 'maxHeartRate',
     'activeKilocalories', 'totalKilocalories', 'intensityMinutes',
     'sleepScore', 'sleepTotalSeconds', 'sleepDeep', 'sleepLight', 'sleepRem', 'sleepAwake',
     'sleepStress', 'sleepSpO2', 'sleepRespiration', 'sleepStart', 'sleepEnd',
@@ -197,15 +197,23 @@ def get_stats():
         last_waist = get_last_waist(csv_rows)
         
         daily_stats = {}
+        yesterday_stats = {}
         sleep_data = {}
         stress_data = {}
         body_battery = []
         body_composition = {}
-        
+
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+
         try:
             daily_stats = client.get_stats(today) or {}
         except Exception as e:
             print(f"Error fetching daily stats: {e}")
+
+        try:
+            yesterday_stats = client.get_stats(yesterday) or {}
+        except Exception as e:
+            print(f"Error fetching yesterday stats: {e}")
         
         try:
             sleep_data = client.get_sleep_data(today) or {}
@@ -340,10 +348,13 @@ def get_stats():
         waist_date = last_waist['date'] if last_waist else ''
         
         # Build response
+        steps_yesterday = yesterday_stats.get('totalSteps', 0) or 0
+
         response = {
             "date": today,
             "summary": {
                 "totalSteps": daily_stats.get('totalSteps', 0) or 0,
+                "stepsYesterday": steps_yesterday,
                 "restingHeartRate": daily_stats.get('restingHeartRate', 0) or 0,
                 "minHeartRate": daily_stats.get('minHeartRate', 0) or 0,
                 "maxHeartRate": daily_stats.get('maxHeartRate', 0) or 0,
@@ -398,6 +409,7 @@ def get_stats():
         csv_row = {
             'date': today,
             'totalSteps': response['summary']['totalSteps'],
+            'stepsYesterday': response['summary']['stepsYesterday'],
             'restingHeartRate': response['summary']['restingHeartRate'],
             'minHeartRate': response['summary']['minHeartRate'],
             'maxHeartRate': response['summary']['maxHeartRate'],
