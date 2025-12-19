@@ -46,9 +46,12 @@ def list_blobs():
 def get_blob_url():
     """Get the URL for our CSV blob by listing blobs (no caching to avoid stale data in serverless)."""
     blobs = list_blobs()
-    for blob in blobs:
-        if blob.get('pathname') == CSV_FILENAME:
-            return blob.get('url')
+    # Find all blobs with our filename and get the most recently uploaded one
+    matching_blobs = [b for b in blobs if b.get('pathname') == CSV_FILENAME]
+    if matching_blobs:
+        # Sort by uploadedAt descending and get the newest one
+        matching_blobs.sort(key=lambda x: x.get('uploadedAt', ''), reverse=True)
+        return matching_blobs[0].get('url')
     return None
 
 def read_csv_from_blob():
