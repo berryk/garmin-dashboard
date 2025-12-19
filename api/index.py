@@ -22,14 +22,38 @@ CSV_HEADERS = [
     'waistInches', 'waistDate'
 ]
 
-BLOB_STORE_ID = os.environ.get('BLOB_STORE_ID', '')
 BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
 CSV_FILENAME = 'garmin-data.csv'
+_blob_url_cache = {}
+
+def list_blobs():
+    """List blobs to find CSV file URL."""
+    if not BLOB_TOKEN:
+        return []
+    
+    try:
+        headers = {
+            'Authorization': f'Bearer {BLOB_TOKEN}'
+        }
+        response = requests.get('https://blob.vercel-storage.com', headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('blobs', [])
+        return []
+    except Exception as e:
+        print(f"Error listing blobs: {e}")
+        return []
 
 def get_blob_url():
-    """Get the full URL for the CSV blob."""
-    if BLOB_STORE_ID:
-        return f"https://{BLOB_STORE_ID}.public.blob.vercel-storage.com/{CSV_FILENAME}"
+    """Get the URL for our CSV blob by listing blobs."""
+    if 'csv_url' in _blob_url_cache:
+        return _blob_url_cache['csv_url']
+    
+    blobs = list_blobs()
+    for blob in blobs:
+        if blob.get('pathname') == CSV_FILENAME:
+            _blob_url_cache['csv_url'] = blob.get('url')
+            return blob.get('url')
     return None
 
 def read_csv_from_blob():
@@ -40,12 +64,14 @@ def read_csv_from_blob():
     try:
         blob_url = get_blob_url()
         if not blob_url:
+            print("CSV blob not found")
             return []
         
         response = requests.get(blob_url, timeout=10)
         if response.status_code == 200:
             reader = csv.DictReader(io.StringIO(response.text))
             return list(reader)
+        print(f"Failed to read CSV: {response.status_code}")
         return []
     except Exception as e:
         print(f"Error reading CSV from blob: {e}")
@@ -77,6 +103,10 @@ def write_csv_to_blob(rows):
         response = requests.put(upload_url, data=csv_content.encode('utf-8'), headers=headers, timeout=30)
         
         if response.status_code in [200, 201]:
+            # Cache the URL from response
+            resp_data = response.json()
+            if 'url' in resp_data:
+                _blob_url_cache['csv_url'] = resp_data['url']
             print(f"CSV uploaded successfully")
             return True
         else:
