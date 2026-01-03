@@ -438,8 +438,8 @@
                 if (result.success) {
                     showToast('Waist saved!');
                     input.value = '';
-                    // Refresh to show updated data
-                    fetchStats();
+                    // Wait a bit for blob storage to be consistent before refreshing
+                    setTimeout(() => fetchStats(), 1500);
                 } else {
                     showToast('Error: ' + (result.error || 'Failed to save'));
                 }
