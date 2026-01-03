@@ -438,8 +438,9 @@
                 if (result.success) {
                     showToast('Waist saved!');
                     input.value = '';
-                    // Wait a bit for blob storage to be consistent before refreshing
-                    setTimeout(() => fetchStats(), 1500);
+                    // Update local data immediately to avoid blob storage consistency issues
+                    statsData.waist = { inches: result.inches, date: result.date };
+                    renderDashboard(statsData);
                 } else {
                     showToast('Error: ' + (result.error || 'Failed to save'));
                 }
