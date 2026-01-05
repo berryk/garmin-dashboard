@@ -169,6 +169,9 @@
         .battery-icon { background: linear-gradient(135deg, #43e97b, #38f9d7); }
         .composition-icon { background: linear-gradient(135deg, #a8edea, #fed6e3); }
         .waist-icon { background: linear-gradient(135deg, #ffecd2, #fcb69f); }
+        .hrv-icon { background: linear-gradient(135deg, #fa709a, #fee140); }
+        .training-icon { background: linear-gradient(135deg, #30cfd0, #330867); }
+        .health-icon { background: linear-gradient(135deg, #a8ff78, #78ffd6); }
 
         .stat-grid {
             display: grid;
@@ -534,6 +537,18 @@
                                 <div class="stat-value">${formatSeconds(data.sleep.awakeSeconds)}</div>
                             </div>
                             <div class="stat-item">
+                                <div class="stat-label">Consistency</div>
+                                <div class="stat-value">${data.sleep.consistency || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Alignment</div>
+                                <div class="stat-value">${data.sleep.alignment || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Restfulness</div>
+                                <div class="stat-value">${data.sleep.restfulness || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
                                 <div class="stat-label">Sleep Stress</div>
                                 <div class="stat-value">${data.sleep.avgStress || 'N/A'}</div>
                             </div>
@@ -646,6 +661,88 @@
                             <div class="stat-item">
                                 <div class="stat-label">Muscle Mass</div>
                                 <div class="stat-value">${data.bodyComposition?.muscleMassKg || 0} kg</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HRV & Training Readiness Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon hrv-icon">💓</div>
+                            <h2 class="card-title">HRV & Readiness</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">HRV Average</div>
+                                <div class="stat-value highlight">${data.hrv?.average || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">HRV Status</div>
+                                <div class="stat-value">${data.hrv?.status || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Training Ready</div>
+                                <div class="stat-value highlight">${data.trainingReadiness?.score || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Ready Status</div>
+                                <div class="stat-value">${data.trainingReadiness?.status || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Training Status Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon training-icon">🏋️</div>
+                            <h2 class="card-title">Training Status</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Status</div>
+                                <div class="stat-value highlight">${data.trainingStatus?.statusKey || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">VO2 Max</div>
+                                <div class="stat-value">${data.trainingStatus?.vo2Max || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Fitness Age</div>
+                                <div class="stat-value">${data.trainingStatus?.fitnessAge || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Recovery Time</div>
+                                <div class="stat-value">${data.trainingStatus?.recoveryTimeHours || 'N/A'}h</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- All-Day Health Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon health-icon">🫁</div>
+                            <h2 class="card-title">All-Day Health</h2>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Resp Avg</div>
+                                <div class="stat-value highlight">${data.allDayRespiration?.average || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Resp Range</div>
+                                <div class="stat-value">${data.allDayRespiration?.min || 'N/A'}-${data.allDayRespiration?.max || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">SpO2 Avg</div>
+                                <div class="stat-value highlight">${data.allDaySpO2?.average || 'N/A'}%</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">SpO2 Min</div>
+                                <div class="stat-value">${data.allDaySpO2?.min || 'N/A'}%</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Skin Temp Var</div>
+                                <div class="stat-value">${data.skinTemp?.variance ? (data.skinTemp.variance > 0 ? '+' : '') + data.skinTemp.variance : 'N/A'}°</div>
                             </div>
                         </div>
                     </div>

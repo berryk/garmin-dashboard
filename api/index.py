@@ -16,8 +16,15 @@ CSV_HEADERS = [
     'activeKilocalories', 'totalKilocalories', 'intensityMinutes',
     'sleepScore', 'sleepTotalSeconds', 'sleepDeep', 'sleepLight', 'sleepRem', 'sleepAwake',
     'sleepStress', 'sleepSpO2', 'sleepRespiration', 'sleepStart', 'sleepEnd',
+    'sleepConsistency', 'sleepAlignment', 'sleepRestfulness',
     'stressAvg', 'stressMax', 'stressRest', 'stressLow', 'stressMed', 'stressHigh',
     'bbCurrent', 'bbHigh', 'bbLow', 'bbCharged', 'bbDrained',
+    'hrvAverage', 'hrvStatus', 'hrvBalanced', 'hrvUnbalanced',
+    'trainingReadinessScore', 'trainingReadinessStatus',
+    'trainingStatusKey', 'vo2MaxValue', 'fitnessAge', 'recoveryTimeHours',
+    'respirationAvg', 'respirationMin', 'respirationMax',
+    'spo2Avg', 'spo2Min',
+    'skinTempVariance',
     'weightKg', 'weightLbs', 'bodyFatPercent', 'bodyWaterPercent', 'muscleMassKg', 'bodyCompDate',
     'waistInches', 'waistDate'
 ]
@@ -202,6 +209,11 @@ def get_stats():
         stress_data = {}
         body_battery = []
         body_composition = {}
+        hrv_data = {}
+        training_readiness = {}
+        training_status = {}
+        respiration_data = {}
+        spo2_data = {}
 
         yesterday = (date.today() - timedelta(days=1)).isoformat()
 
@@ -214,26 +226,51 @@ def get_stats():
             yesterday_stats = client.get_stats(yesterday) or {}
         except Exception as e:
             print(f"Error fetching yesterday stats: {e}")
-        
+
         try:
             sleep_data = client.get_sleep_data(today) or {}
         except Exception as e:
             print(f"Error fetching sleep data: {e}")
-        
+
         try:
             stress_data = client.get_stress_data(today) or {}
         except Exception as e:
             print(f"Error fetching stress data: {e}")
-        
+
         try:
             body_battery = client.get_body_battery(today) or []
         except Exception as e:
             print(f"Error fetching body battery: {e}")
-        
+
         try:
             body_composition = client.get_body_composition(today) or {}
         except Exception as e:
             print(f"Error fetching body composition: {e}")
+
+        try:
+            hrv_data = client.get_hrv_data(today) or {}
+        except Exception as e:
+            print(f"Error fetching HRV data: {e}")
+
+        try:
+            training_readiness = client.get_training_readiness(today) or {}
+        except Exception as e:
+            print(f"Error fetching training readiness: {e}")
+
+        try:
+            training_status = client.get_training_status(today) or {}
+        except Exception as e:
+            print(f"Error fetching training status: {e}")
+
+        try:
+            respiration_data = client.get_respiration_data(today) or {}
+        except Exception as e:
+            print(f"Error fetching respiration data: {e}")
+
+        try:
+            spo2_data = client.get_spo2_data(today) or {}
+        except Exception as e:
+            print(f"Error fetching SpO2 data: {e}")
         
         # Extract sleep details from dailySleepDTO
         sleep_dto = {}
@@ -346,7 +383,90 @@ def get_stats():
         # Waist - use last known value
         waist_inches = last_waist['inches'] if last_waist else 0
         waist_date = last_waist['date'] if last_waist else ''
-        
+
+        # HRV data extraction
+        hrv_average = 0
+        hrv_status = ''
+        hrv_balanced = 0
+        hrv_unbalanced = 0
+        if isinstance(hrv_data, dict):
+            hrv_average = hrv_data.get('lastNightAvg', 0) or 0
+            hrv_status = hrv_data.get('status', '') or ''
+            # Extract balanced/unbalanced durations if available
+            weekly_avg = hrv_data.get('weeklyAvg', 0) or 0
+            baseline = hrv_data.get('baseline', {}) or {}
+            if isinstance(baseline, dict):
+                balanced_low = baseline.get('balancedLow', 0) or 0
+                balanced_high = baseline.get('balancedHigh', 0) or 0
+                if hrv_average >= balanced_low and hrv_average <= balanced_high:
+                    hrv_balanced = 1
+                else:
+                    hrv_unbalanced = 1
+
+        # Training Readiness extraction
+        tr_score = 0
+        tr_status = ''
+        if isinstance(training_readiness, dict):
+            tr_score = training_readiness.get('score', 0) or 0
+            tr_status = training_readiness.get('level', '') or ''
+
+        # Training Status extraction
+        ts_key = ''
+        vo2_max = 0
+        fitness_age = 0
+        recovery_time = 0
+        if isinstance(training_status, dict):
+            ts_key = training_status.get('trainingStatusKey', '') or ''
+            vo2_max = training_status.get('vo2MaxPreciseValue', 0) or training_status.get('vo2Max', 0) or 0
+            fitness_age = training_status.get('fitnessAge', 0) or 0
+            recovery_time = training_status.get('recoveryTime', 0) or 0
+            # Convert recovery time from minutes to hours if needed
+            if recovery_time > 0 and recovery_time < 200:  # Assume it's in hours if < 200
+                pass
+            elif recovery_time >= 200:  # Assume it's in minutes
+                recovery_time = round(recovery_time / 60, 1)
+
+        # All-day Respiration extraction
+        resp_avg = 0
+        resp_min = 0
+        resp_max = 0
+        if isinstance(respiration_data, dict):
+            resp_avg = respiration_data.get('avgWakingRespirationValue', 0) or respiration_data.get('averageRespirationValue', 0) or 0
+            resp_min = respiration_data.get('lowestRespirationValue', 0) or 0
+            resp_max = respiration_data.get('highestRespirationValue', 0) or 0
+
+        # All-day SpO2 extraction
+        spo2_avg = 0
+        spo2_min = 0
+        if isinstance(spo2_data, dict):
+            spo2_avg = spo2_data.get('averageSPO2', 0) or spo2_data.get('averageSpO2', 0) or 0
+            spo2_min = spo2_data.get('lowestSPO2', 0) or spo2_data.get('lowestSpO2', 0) or 0
+
+        # Enhanced sleep metrics from sleep_dto
+        sleep_consistency = 0
+        sleep_alignment = 0
+        sleep_restfulness = 0
+        skin_temp_variance = 0
+
+        if isinstance(sleep_dto, dict):
+            # Sleep quality metrics
+            sleep_scores = sleep_dto.get('sleepScores', {}) or {}
+            if isinstance(sleep_scores, dict):
+                consistency_obj = sleep_scores.get('consistency', {}) or {}
+                if isinstance(consistency_obj, dict):
+                    sleep_consistency = consistency_obj.get('value', 0) or 0
+
+                alignment_obj = sleep_scores.get('alignment', {}) or {}
+                if isinstance(alignment_obj, dict):
+                    sleep_alignment = alignment_obj.get('value', 0) or 0
+
+                restfulness_obj = sleep_scores.get('restfulness', {}) or {}
+                if isinstance(restfulness_obj, dict):
+                    sleep_restfulness = restfulness_obj.get('value', 0) or 0
+
+            # Skin temperature variance
+            skin_temp_variance = sleep_dto.get('skinTempVariance', 0) or 0
+
         # Build response
         steps_yesterday = yesterday_stats.get('totalSteps', 0) or 0
 
@@ -373,7 +493,10 @@ def get_stats():
                 "avgSpO2": sleep_dto.get('averageSpO2Value', 0) or 0,
                 "avgRespiration": sleep_dto.get('averageRespirationValue', 0) or 0,
                 "startTime": sleep_dto.get('sleepStartTimestampGMT', 0) or 0,
-                "endTime": sleep_dto.get('sleepEndTimestampGMT', 0) or 0
+                "endTime": sleep_dto.get('sleepEndTimestampGMT', 0) or 0,
+                "consistency": sleep_consistency,
+                "alignment": sleep_alignment,
+                "restfulness": sleep_restfulness
             },
             "stress": {
                 "averageLevel": (stress_data.get('avgStressLevel', 0) if isinstance(stress_data, dict) else 0) or 0,
@@ -401,6 +524,34 @@ def get_stats():
             "waist": {
                 "inches": waist_inches,
                 "date": waist_date
+            },
+            "hrv": {
+                "average": hrv_average,
+                "status": hrv_status,
+                "balanced": hrv_balanced,
+                "unbalanced": hrv_unbalanced
+            },
+            "trainingReadiness": {
+                "score": tr_score,
+                "status": tr_status
+            },
+            "trainingStatus": {
+                "statusKey": ts_key,
+                "vo2Max": vo2_max,
+                "fitnessAge": fitness_age,
+                "recoveryTimeHours": recovery_time
+            },
+            "allDayRespiration": {
+                "average": resp_avg,
+                "min": resp_min,
+                "max": resp_max
+            },
+            "allDaySpO2": {
+                "average": spo2_avg,
+                "min": spo2_min
+            },
+            "skinTemp": {
+                "variance": skin_temp_variance
             }
         }
         
@@ -427,6 +578,9 @@ def get_stats():
             'sleepRespiration': response['sleep']['avgRespiration'],
             'sleepStart': response['sleep']['startTime'],
             'sleepEnd': response['sleep']['endTime'],
+            'sleepConsistency': response['sleep']['consistency'],
+            'sleepAlignment': response['sleep']['alignment'],
+            'sleepRestfulness': response['sleep']['restfulness'],
             'stressAvg': response['stress']['averageLevel'],
             'stressMax': response['stress']['maxLevel'],
             'stressRest': response['stress']['restDurationSeconds'],
@@ -438,6 +592,22 @@ def get_stats():
             'bbLow': response['bodyBattery']['lowest'],
             'bbCharged': response['bodyBattery']['charged'],
             'bbDrained': response['bodyBattery']['drained'],
+            'hrvAverage': response['hrv']['average'],
+            'hrvStatus': response['hrv']['status'],
+            'hrvBalanced': response['hrv']['balanced'],
+            'hrvUnbalanced': response['hrv']['unbalanced'],
+            'trainingReadinessScore': response['trainingReadiness']['score'],
+            'trainingReadinessStatus': response['trainingReadiness']['status'],
+            'trainingStatusKey': response['trainingStatus']['statusKey'],
+            'vo2MaxValue': response['trainingStatus']['vo2Max'],
+            'fitnessAge': response['trainingStatus']['fitnessAge'],
+            'recoveryTimeHours': response['trainingStatus']['recoveryTimeHours'],
+            'respirationAvg': response['allDayRespiration']['average'],
+            'respirationMin': response['allDayRespiration']['min'],
+            'respirationMax': response['allDayRespiration']['max'],
+            'spo2Avg': response['allDaySpO2']['average'],
+            'spo2Min': response['allDaySpO2']['min'],
+            'skinTempVariance': response['skinTemp']['variance'],
             'weightKg': weight_kg if has_today_body_comp else '',
             'weightLbs': weight_lbs if has_today_body_comp else '',
             'bodyFatPercent': body_fat if has_today_body_comp else '',
