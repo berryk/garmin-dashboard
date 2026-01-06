@@ -736,31 +736,66 @@ def debug():
     try:
         client = get_garmin_client()
         today = date.today().isoformat()
-        
+
         sleep_data = {}
         stress_data = {}
         body_battery = {}
-        
+        hrv_data = {}
+        training_readiness = {}
+        training_status = {}
+        respiration_data = {}
+        spo2_data = {}
+
         try:
             sleep_data = client.get_sleep_data(today) or {}
         except Exception as e:
             sleep_data = {"error": str(e)}
-        
+
         try:
             stress_data = client.get_stress_data(today) or {}
         except Exception as e:
             stress_data = {"error": str(e)}
-        
+
         try:
             body_battery = client.get_body_battery(today) or {}
         except Exception as e:
             body_battery = {"error": str(e)}
-        
+
+        try:
+            hrv_data = client.get_hrv_data(today) or {}
+        except Exception as e:
+            hrv_data = {"error": str(e)}
+
+        try:
+            training_readiness = client.get_training_readiness(today) or {}
+        except Exception as e:
+            training_readiness = {"error": str(e)}
+
+        try:
+            training_status = client.get_training_status(today) or {}
+        except Exception as e:
+            training_status = {"error": str(e)}
+
+        try:
+            respiration_data = client.get_respiration_data(today) or {}
+        except Exception as e:
+            respiration_data = {"error": str(e)}
+
+        try:
+            spo2_data = client.get_spo2_data(today) or {}
+        except Exception as e:
+            spo2_data = {"error": str(e)}
+
         return jsonify({
             "date": today,
             "sleep_raw": sleep_data,
             "stress_raw": stress_data,
-            "body_battery_raw": body_battery
+            "body_battery_raw": body_battery,
+            "hrv_raw": hrv_data,
+            "training_readiness_raw": training_readiness,
+            "training_status_raw": training_status,
+            "respiration_raw": respiration_data,
+            "spo2_raw": spo2_data
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
