@@ -378,7 +378,8 @@ def get_stats():
         if isinstance(body_composition, dict):
             weight_list = body_composition.get('dateWeightList', []) or []
             if weight_list and len(weight_list) > 0:
-                latest = weight_list[-1] if isinstance(weight_list[-1], dict) else {}
+                # API returns list in reverse chronological order (newest first)
+                latest = weight_list[0] if isinstance(weight_list[0], dict) else {}
                 weight_grams = latest.get('weight', 0) or 0
                 body_fat = latest.get('bodyFat', 0) or 0
                 body_water = latest.get('bodyWater', 0) or 0
