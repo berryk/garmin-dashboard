@@ -8,6 +8,15 @@ import io
 from garminconnect import Garmin
 from datetime import datetime, date, timedelta
 
+# Try to import zoneinfo (Python 3.9+), fallback to pytz
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    # Python < 3.9, use pytz
+    import pytz
+    def ZoneInfo(tz_name):
+        return pytz.timezone(tz_name)
+
 app = Flask(__name__)
 
 # CSV Header columns
@@ -194,7 +203,23 @@ def get_stats():
     """Fetch today's Garmin stats and return as JSON."""
     try:
         client = get_garmin_client()
-        today = date.today().isoformat()
+        
+        # Get user's timezone from Garmin
+        user_timezone = 'UTC'  # Default fallback
+        try:
+            user_settings = client.get_userprofile_settings()
+            user_timezone = user_settings.get('timeZone', 'UTC') or 'UTC'
+            print(f"Using Garmin timezone: {user_timezone}")
+        except Exception as e:
+            print(f"Error getting timezone, using UTC: {e}")
+        
+        # Calculate today in user's timezone
+        tz = ZoneInfo(user_timezone)
+        now_user_tz = datetime.now(tz)
+        today = now_user_tz.date().isoformat()
+        yesterday = (now_user_tz.date() - timedelta(days=1)).isoformat()
+        
+        print(f"Date in {user_timezone}: {today}")
         
         # Read existing CSV data
         csv_rows = read_csv_from_blob()
@@ -214,8 +239,6 @@ def get_stats():
         training_status = {}
         respiration_data = {}
         spo2_data = {}
-
-        yesterday = (date.today() - timedelta(days=1)).isoformat()
 
         try:
             daily_stats = client.get_stats(today) or {}
@@ -487,6 +510,8 @@ def get_stats():
 
         response = {
             "date": today,
+            "timezone": user_timezone,
+            "localTime": now_user_tz.isoformat(),
             "summary": {
                 "totalSteps": daily_stats.get('totalSteps', 0) or 0,
                 "stepsYesterday": steps_yesterday,

@@ -407,7 +407,8 @@
                 }
 
                 statsData = data;
-                document.getElementById('dateDisplay').textContent = `Data for ${data.date}`;
+                const tzInfo = data.timezone ? ` (${data.timezone})` : '';
+                document.getElementById('dateDisplay').textContent = `Data for ${data.date}${tzInfo}`;
                 renderDashboard(data);
             } catch (error) {
                 content.innerHTML = `
