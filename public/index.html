@@ -484,6 +484,14 @@
                                 <div class="stat-value">${formatNumber(data.summary.stepsYesterday)}</div>
                             </div>
                             <div class="stat-item">
+                                <div class="stat-label">Distance</div>
+                                <div class="stat-value">${(data.summary.distanceMeters / 1000).toFixed(2)} km</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Floors Climbed</div>
+                                <div class="stat-value">${data.summary.floorsClimbed || 0}</div>
+                            </div>
+                            <div class="stat-item">
                                 <div class="stat-label">Resting HR</div>
                                 <div class="stat-value">${data.summary.restingHeartRate} bpm</div>
                             </div>
@@ -501,7 +509,15 @@
                             </div>
                             <div class="stat-item">
                                 <div class="stat-label">Intensity Min</div>
-                                <div class="stat-value">${data.summary.intensityMinutes}</div>
+                                <div class="stat-value highlight">${data.summary.intensityMinutes}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Moderate</div>
+                                <div class="stat-value">${data.summary.moderateIntensityMinutes || 0} min</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Vigorous</div>
+                                <div class="stat-value">${data.summary.vigorousIntensityMinutes || 0} min</div>
                             </div>
                         </div>
                     </div>

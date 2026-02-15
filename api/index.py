@@ -21,8 +21,10 @@ app = Flask(__name__)
 
 # CSV Header columns
 CSV_HEADERS = [
-    'date', 'totalSteps', 'stepsYesterday', 'restingHeartRate', 'minHeartRate', 'maxHeartRate',
-    'activeKilocalories', 'totalKilocalories', 'intensityMinutes',
+    'date', 'totalSteps', 'stepsYesterday', 'distanceMeters', 'floorsClimbed', 
+    'restingHeartRate', 'minHeartRate', 'maxHeartRate',
+    'activeKilocalories', 'totalKilocalories', 'intensityMinutes', 
+    'moderateIntensityMinutes', 'vigorousIntensityMinutes',
     'sleepScore', 'sleepTotalSeconds', 'sleepDeep', 'sleepLight', 'sleepRem', 'sleepAwake',
     'sleepStress', 'sleepSpO2', 'sleepRespiration', 'sleepStart', 'sleepEnd',
     'sleepConsistency', 'sleepAlignment', 'sleepRestfulness',
@@ -515,12 +517,16 @@ def get_stats():
             "summary": {
                 "totalSteps": daily_stats.get('totalSteps', 0) or 0,
                 "stepsYesterday": steps_yesterday,
+                "distanceMeters": daily_stats.get('totalDistanceMeters', 0) or 0,
+                "floorsClimbed": daily_stats.get('floorsAscended', 0) or 0,
                 "restingHeartRate": daily_stats.get('restingHeartRate', 0) or 0,
                 "minHeartRate": daily_stats.get('minHeartRate', 0) or 0,
                 "maxHeartRate": daily_stats.get('maxHeartRate', 0) or 0,
                 "activeKilocalories": daily_stats.get('activeKilocalories', 0) or 0,
                 "totalKilocalories": daily_stats.get('totalKilocalories', 0) or 0,
-                "intensityMinutes": intensity_mins
+                "intensityMinutes": intensity_mins,
+                "moderateIntensityMinutes": daily_stats.get('moderateIntensityMinutes', 0) or 0,
+                "vigorousIntensityMinutes": daily_stats.get('vigorousIntensityMinutes', 0) or 0
             },
             "sleep": {
                 "overallScore": overall_score,
@@ -601,12 +607,16 @@ def get_stats():
             'date': today,
             'totalSteps': response['summary']['totalSteps'],
             'stepsYesterday': response['summary']['stepsYesterday'],
+            'distanceMeters': response['summary']['distanceMeters'],
+            'floorsClimbed': response['summary']['floorsClimbed'],
             'restingHeartRate': response['summary']['restingHeartRate'],
             'minHeartRate': response['summary']['minHeartRate'],
             'maxHeartRate': response['summary']['maxHeartRate'],
             'activeKilocalories': response['summary']['activeKilocalories'],
             'totalKilocalories': response['summary']['totalKilocalories'],
             'intensityMinutes': response['summary']['intensityMinutes'],
+            'moderateIntensityMinutes': response['summary']['moderateIntensityMinutes'],
+            'vigorousIntensityMinutes': response['summary']['vigorousIntensityMinutes'],
             'sleepScore': response['sleep']['overallScore'],
             'sleepTotalSeconds': response['sleep']['totalSeconds'],
             'sleepDeep': response['sleep']['deepSeconds'],
