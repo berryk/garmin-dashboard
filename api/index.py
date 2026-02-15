@@ -243,7 +243,9 @@ def get_stats():
             print(f"Error fetching body battery: {e}")
 
         try:
-            body_composition = client.get_body_composition(today) or {}
+            # Fetch body composition for last 30 days to get most recent weight
+            start_date = (date.today() - timedelta(days=30)).isoformat()
+            body_composition = client.get_body_composition(start_date, today) or {}
         except Exception as e:
             print(f"Error fetching body composition: {e}")
 
@@ -384,17 +386,26 @@ def get_stats():
         waist_inches = last_waist['inches'] if last_waist else 0
         waist_date = last_waist['date'] if last_waist else ''
 
-        # HRV data extraction
+        # HRV data extraction (data is nested under hrvSummary)
         hrv_average = 0
         hrv_status = ''
         hrv_balanced = 0
         hrv_unbalanced = 0
         if isinstance(hrv_data, dict):
-            hrv_average = hrv_data.get('lastNightAvg', 0) or 0
-            hrv_status = hrv_data.get('status', '') or ''
-            # Extract balanced/unbalanced durations if available
-            weekly_avg = hrv_data.get('weeklyAvg', 0) or 0
-            baseline = hrv_data.get('baseline', {}) or {}
+            # Check for nested hrvSummary first
+            hrv_summary = hrv_data.get('hrvSummary', {}) or {}
+            if isinstance(hrv_summary, dict) and hrv_summary:
+                hrv_average = hrv_summary.get('lastNightAvg', 0) or 0
+                hrv_status = hrv_summary.get('status', '') or ''
+                weekly_avg = hrv_summary.get('weeklyAvg', 0) or 0
+                baseline = hrv_summary.get('baseline', {}) or {}
+            else:
+                # Fallback to direct access (older API format)
+                hrv_average = hrv_data.get('lastNightAvg', 0) or 0
+                hrv_status = hrv_data.get('status', '') or ''
+                weekly_avg = hrv_data.get('weeklyAvg', 0) or 0
+                baseline = hrv_data.get('baseline', {}) or {}
+            
             if isinstance(baseline, dict):
                 balanced_low = baseline.get('balancedLow', 0) or 0
                 balanced_high = baseline.get('balancedHigh', 0) or 0
@@ -403,10 +414,14 @@ def get_stats():
                 else:
                     hrv_unbalanced = 1
 
-        # Training Readiness extraction
+        # Training Readiness extraction (API returns a list)
         tr_score = 0
         tr_status = ''
-        if isinstance(training_readiness, dict):
+        if isinstance(training_readiness, list) and len(training_readiness) > 0:
+            tr_data = training_readiness[0]
+            tr_score = tr_data.get('score', 0) or 0
+            tr_status = tr_data.get('level', '') or ''
+        elif isinstance(training_readiness, dict):
             tr_score = training_readiness.get('score', 0) or 0
             tr_status = training_readiness.get('level', '') or ''
 
