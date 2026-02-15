@@ -717,7 +717,11 @@
                         <div class="stat-grid">
                             <div class="stat-item">
                                 <div class="stat-label">Status</div>
-                                <div class="stat-value highlight">${data.trainingStatus?.statusKey || 'N/A'}</div>
+                                <div class="stat-value highlight">${data.trainingStatus?.statusLabel || data.trainingStatus?.statusKey || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Load Balance</div>
+                                <div class="stat-value">${data.trainingStatus?.trainingLoadBalance || 'N/A'}</div>
                             </div>
                             <div class="stat-item">
                                 <div class="stat-label">VO2 Max</div>
@@ -728,8 +732,32 @@
                                 <div class="stat-value">${data.trainingStatus?.fitnessAge || 'N/A'}</div>
                             </div>
                             <div class="stat-item">
-                                <div class="stat-label">Recovery Time</div>
-                                <div class="stat-value">${data.trainingStatus?.recoveryTimeHours || 'N/A'}h</div>
+                                <div class="stat-label">Acute Load (7d)</div>
+                                <div class="stat-value">${data.trainingStatus?.acuteLoad || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Chronic Load (42d)</div>
+                                <div class="stat-value">${data.trainingStatus?.chronicLoad || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Load Ratio</div>
+                                <div class="stat-value">${data.trainingStatus?.loadRatio ? data.trainingStatus.loadRatio.toFixed(2) : 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Load Status</div>
+                                <div class="stat-value">${data.trainingStatus?.loadStatus || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Aerobic Low</div>
+                                <div class="stat-value">${data.trainingStatus?.aerobicLow || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Aerobic High</div>
+                                <div class="stat-value">${data.trainingStatus?.aerobicHigh || 'N/A'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Anaerobic</div>
+                                <div class="stat-value">${data.trainingStatus?.anaerobic || 'N/A'}</div>
                             </div>
                         </div>
                     </div>

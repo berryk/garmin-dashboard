@@ -32,7 +32,9 @@ CSV_HEADERS = [
     'bbCurrent', 'bbHigh', 'bbLow', 'bbCharged', 'bbDrained',
     'hrvAverage', 'hrvStatus', 'hrvBalanced', 'hrvUnbalanced',
     'trainingReadinessScore', 'trainingReadinessStatus',
-    'trainingStatusKey', 'vo2MaxValue', 'fitnessAge', 'recoveryTimeHours',
+    'trainingStatusKey', 'trainingStatusLabel', 'vo2MaxValue', 'fitnessAge', 'fitnessTrend',
+    'acuteLoad', 'chronicLoad', 'loadRatio', 'loadStatus', 'trainingLoadBalance',
+    'aerobicLow', 'aerobicHigh', 'anaerobic',
     'respirationAvg', 'respirationMin', 'respirationMax',
     'spo2Avg', 'spo2Min',
     'skinTempVariance',
@@ -451,21 +453,64 @@ def get_stats():
             tr_score = training_readiness.get('score', 0) or 0
             tr_status = training_readiness.get('level', '') or ''
 
-        # Training Status extraction
+        # Training Status extraction (complex nested structure)
         ts_key = ''
+        ts_label = ''
         vo2_max = 0
         fitness_age = 0
         recovery_time = 0
+        acute_load = 0
+        chronic_load = 0
+        load_ratio = 0.0
+        load_status = ''
+        fitness_trend = ''
+        training_load_balance = ''
+        aerobic_low = 0
+        aerobic_high = 0
+        anaerobic = 0
+        
         if isinstance(training_status, dict):
-            ts_key = training_status.get('trainingStatusKey', '') or ''
-            vo2_max = training_status.get('vo2MaxPreciseValue', 0) or training_status.get('vo2Max', 0) or 0
-            fitness_age = training_status.get('fitnessAge', 0) or 0
-            recovery_time = training_status.get('recoveryTime', 0) or 0
-            # Convert recovery time from minutes to hours if needed
-            if recovery_time > 0 and recovery_time < 200:  # Assume it's in hours if < 200
-                pass
-            elif recovery_time >= 200:  # Assume it's in minutes
-                recovery_time = round(recovery_time / 60, 1)
+            # VO2 Max from mostRecentVO2Max
+            vo2_data = training_status.get('mostRecentVO2Max', {}) or {}
+            if isinstance(vo2_data, dict):
+                generic = vo2_data.get('generic', {}) or {}
+                if isinstance(generic, dict):
+                    vo2_max = generic.get('vo2MaxPreciseValue', 0) or generic.get('vo2MaxValue', 0) or 0
+                    fitness_age = generic.get('fitnessAge', 0) or 0
+            
+            # Training status from mostRecentTrainingStatus
+            recent_status = training_status.get('mostRecentTrainingStatus', {}) or {}
+            if isinstance(recent_status, dict):
+                latest_data = recent_status.get('latestTrainingStatusData', {}) or {}
+                if isinstance(latest_data, dict):
+                    # Get first device's data
+                    for device_id, device_data in latest_data.items():
+                        if isinstance(device_data, dict):
+                            ts_key = device_data.get('trainingStatus', 0) or 0
+                            ts_label = device_data.get('trainingStatusFeedbackPhrase', '') or ''
+                            fitness_trend = device_data.get('fitnessTrend', 0) or 0
+                            
+                            # Acute/Chronic Training Load
+                            acuteDTO = device_data.get('acuteTrainingLoadDTO', {}) or {}
+                            if isinstance(acuteDTO, dict):
+                                acute_load = acuteDTO.get('dailyTrainingLoadAcute', 0) or 0
+                                chronic_load = acuteDTO.get('dailyTrainingLoadChronic', 0) or 0
+                                load_ratio = acuteDTO.get('dailyAcuteChronicWorkloadRatio', 0.0) or 0.0
+                                load_status = acuteDTO.get('acwrStatus', '') or ''
+                            break
+            
+            # Training Load Balance
+            load_balance = training_status.get('mostRecentTrainingLoadBalance', {}) or {}
+            if isinstance(load_balance, dict):
+                metrics_map = load_balance.get('metricsTrainingLoadBalanceDTOMap', {}) or {}
+                if isinstance(metrics_map, dict):
+                    for device_id, device_data in metrics_map.items():
+                        if isinstance(device_data, dict):
+                            aerobic_low = round(device_data.get('monthlyLoadAerobicLow', 0) or 0)
+                            aerobic_high = round(device_data.get('monthlyLoadAerobicHigh', 0) or 0)
+                            anaerobic = round(device_data.get('monthlyLoadAnaerobic', 0) or 0)
+                            training_load_balance = device_data.get('trainingBalanceFeedbackPhrase', '') or ''
+                            break
 
         # All-day Respiration extraction
         resp_avg = 0
@@ -584,9 +629,18 @@ def get_stats():
             },
             "trainingStatus": {
                 "statusKey": ts_key,
+                "statusLabel": ts_label,
                 "vo2Max": vo2_max,
                 "fitnessAge": fitness_age,
-                "recoveryTimeHours": recovery_time
+                "fitnessTrend": fitness_trend,
+                "acuteLoad": acute_load,
+                "chronicLoad": chronic_load,
+                "loadRatio": load_ratio,
+                "loadStatus": load_status,
+                "trainingLoadBalance": training_load_balance,
+                "aerobicLow": aerobic_low,
+                "aerobicHigh": aerobic_high,
+                "anaerobic": anaerobic
             },
             "allDayRespiration": {
                 "average": resp_avg,
@@ -650,9 +704,18 @@ def get_stats():
             'trainingReadinessScore': response['trainingReadiness']['score'],
             'trainingReadinessStatus': response['trainingReadiness']['status'],
             'trainingStatusKey': response['trainingStatus']['statusKey'],
+            'trainingStatusLabel': response['trainingStatus']['statusLabel'],
             'vo2MaxValue': response['trainingStatus']['vo2Max'],
             'fitnessAge': response['trainingStatus']['fitnessAge'],
-            'recoveryTimeHours': response['trainingStatus']['recoveryTimeHours'],
+            'fitnessTrend': response['trainingStatus']['fitnessTrend'],
+            'acuteLoad': response['trainingStatus']['acuteLoad'],
+            'chronicLoad': response['trainingStatus']['chronicLoad'],
+            'loadRatio': response['trainingStatus']['loadRatio'],
+            'loadStatus': response['trainingStatus']['loadStatus'],
+            'trainingLoadBalance': response['trainingStatus']['trainingLoadBalance'],
+            'aerobicLow': response['trainingStatus']['aerobicLow'],
+            'aerobicHigh': response['trainingStatus']['aerobicHigh'],
+            'anaerobic': response['trainingStatus']['anaerobic'],
             'respirationAvg': response['allDayRespiration']['average'],
             'respirationMin': response['allDayRespiration']['min'],
             'respirationMax': response['allDayRespiration']['max'],
